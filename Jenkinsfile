@@ -19,26 +19,24 @@ pipeline {
             }
         }
 
-        stage('Environment Information') {
-            steps {
-                sh '''
-                    echo "Workspace: $WORKSPACE"
-                    git --version
-                    docker --version
-                    docker info
-                '''
-            }
-        }
-
         stage('Run Playwright Tests') {
             steps {
                 sh '''
+                    JENKINS_UID=$(id -u)
+                    JENKINS_GID=$(id -g)
+
+                    echo "Jenkins UID: $JENKINS_UID"
+                    echo "Jenkins GID: $JENKINS_GID"
+
                     docker run --rm \
                       --init \
                       --ipc=host \
+                      --user "$JENKINS_UID:$JENKINS_GID" \
                       --volumes-from jenkins \
                       --workdir "$WORKSPACE" \
                       -e CI=true \
+                      -e HOME=/tmp \
+                      -e npm_config_cache=/tmp/npm-cache \
                       -e PLAYWRIGHT_JUNIT_OUTPUT_NAME=test-results/results.xml \
                       "$PLAYWRIGHT_IMAGE" \
                       /bin/bash -c "
@@ -62,14 +60,6 @@ pipeline {
                 allowEmptyArchive: true,
                 fingerprint: true
             )
-        }
-
-        success {
-            echo 'Playwright tests passed.'
-        }
-
-        failure {
-            echo 'Playwright tests failed. Check the console output and archived artifacts.'
         }
 
         cleanup {
