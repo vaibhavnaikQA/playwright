@@ -1,3 +1,4 @@
+```groovy
 pipeline {
     agent any
 
@@ -10,6 +11,7 @@ pipeline {
     options {
         timestamps()
         disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
     stages {
@@ -19,19 +21,32 @@ pipeline {
             }
         }
 
+        stage('Environment Information') {
+            steps {
+                sh '''
+                    echo "Workspace: $WORKSPACE"
+                    echo "Jenkins user: $(whoami)"
+                    echo "Jenkins UID: $(id -u)"
+                    echo "Jenkins GID: $(id -g)"
+
+                    git --version
+                    docker --version
+                '''
+            }
+        }
+
         stage('Run Playwright Tests') {
             steps {
                 sh '''
                     JENKINS_UID=$(id -u)
                     JENKINS_GID=$(id -g)
 
-                    echo "Jenkins UID: $JENKINS_UID"
-                    echo "Jenkins GID: $JENKINS_GID"
+                    echo "Running Playwright container as UID:GID ${JENKINS_UID}:${JENKINS_GID}"
 
                     docker run --rm \
                       --init \
                       --ipc=host \
-                      --user "$JENKINS_UID:$JENKINS_GID" \
+                      --user "${JENKINS_UID}:${JENKINS_GID}" \
                       --volumes-from jenkins \
                       --workdir "$WORKSPACE" \
                       -e CI=true \
@@ -54,15 +69,16 @@ pipeline {
                 testResults: 'test-results/results.xml',
                 allowEmptyResults: true
             )
+
             publishHTML([
-            allowMissing: true,
-            alwaysLinkToLastBuild: true,
-            keepAll: true,
-            reportDir: 'playwright-report',
-            reportFiles: 'index.html',
-            reportName: 'Playwright HTML Report',
-            reportTitles: 'Playwright Test Results'
-        ])
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'playwright-report',
+                reportFiles: 'index.html',
+                reportName: 'Playwright HTML Report',
+                reportTitles: 'Playwright Test Results'
+            ])
 
             archiveArtifacts(
                 artifacts: 'playwright-report/**,test-results/**',
@@ -70,16 +86,23 @@ pipeline {
                 fingerprint: true
             )
         }
-    success {
-        echo 'Playwright tests passed.'
-    }
 
-    failure {
-        echo 'Playwright tests failed. Open the Playwright HTML Report.'
-    }
+        success {
+            echo 'Playwright tests passed successfully.'
+        }
+
+        unstable {
+            echo 'Some Playwright test results are unstable. Check the reports.'
+        }
+
+        failure {
+            echo 'Playwright tests failed. Open the Playwright HTML Report for details.'
+        }
 
         cleanup {
+            echo 'Cleaning Jenkins workspace.'
             deleteDir()
         }
     }
 }
+```
