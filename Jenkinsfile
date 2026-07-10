@@ -54,6 +54,15 @@ pipeline {
                 testResults: 'test-results/results.xml',
                 allowEmptyResults: true
             )
+            publishHTML([
+            allowMissing: true,
+            alwaysLinkToLastBuild: true,
+            keepAll: true,
+            reportDir: 'playwright-report',
+            reportFiles: 'index.html',
+            reportName: 'Playwright HTML Report',
+            reportTitles: 'Playwright Test Results'
+        ])
 
             archiveArtifacts(
                 artifacts: 'playwright-report/**,test-results/**',
@@ -61,6 +70,13 @@ pipeline {
                 fingerprint: true
             )
         }
+    success {
+        echo 'Playwright tests passed.'
+    }
+
+    failure {
+        echo 'Playwright tests failed. Open the Playwright HTML Report.'
+    }
 
         cleanup {
             deleteDir()
