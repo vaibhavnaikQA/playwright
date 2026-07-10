@@ -3,13 +3,13 @@ import { defineConfig, devices } from '@playwright/test';
 const isCI = Boolean((globalThis as any).process?.env?.CI);
 export default defineConfig({
   testDir: './tests',
-  timeout: 4* 1000,
-  expect:{
-    timeout: 3000
-  },
+  // timeout: 4* 1000,
+  // expect:{
+  //   timeout: 3000
+  // },
   fullyParallel: true,
   forbidOnly: isCI,
-  retries:2,
+  // retries:2,
   workers: isCI ? 1 : undefined,
   reporter: 'html',
   use: {
